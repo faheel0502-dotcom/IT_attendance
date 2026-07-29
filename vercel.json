@@ -17,6 +17,9 @@
       "dest": "backend/src/app.ts"
     },
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
