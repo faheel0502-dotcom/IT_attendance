@@ -1,0 +1,139 @@
+// This is your Prisma schema file
+// Configured for Neon PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Faculty {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  password   String   // hashed with bcrypt
+  department String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  courses Course[]
+
+  @@map("faculty")
+}
+
+model Student {
+  id         String   @id @default(uuid())
+  rollNumber String   @unique @map("roll_number")
+  name       String
+  email      String?
+  batch      String?  // Holds the Class/Section name e.g. "IT 3rd year - section A"
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  courseStudents    CourseStudent[]
+  attendanceDetails AttendanceDetail[]
+  attendanceEdits   AttendanceEdit[]
+
+  @@map("students")
+}
+
+model Course {
+  id             String   @id @default(uuid())
+  facultyId      String   @map("faculty_id")
+  courseCode     String   @map("course_code")
+  courseName     String   @map("course_name")
+  semester       String?
+  className      String?  @map("class_name") // e.g. "IT 3rd year - section A"
+  enrollmentType String   @default("default") @map("enrollment_type")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  faculty        Faculty         @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  courseStudents CourseStudent[]
+  timetable      Timetable[]
+  attendance     Attendance[]
+
+  @@unique([facultyId, courseCode])
+  @@map("courses")
+}
+
+model CourseStudent {
+  courseId  String   @map("course_id")
+  studentId String   @map("student_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, studentId])
+  @@map("course_students")
+}
+
+model Timetable {
+  id        String   @id @default(uuid())
+  courseId  String   @map("course_id")
+  dayOfWeek Int      @map("day_of_week") // 1=Mon, 7=Sun
+  hour      Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, dayOfWeek, hour])
+  @@map("timetable")
+}
+
+model Holiday {
+  id          String   @id @default(uuid())
+  date        DateTime @db.Date
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([date])
+  @@map("holidays")
+}
+
+model Attendance {
+  id            String   @id @default(uuid())
+  courseId      String   @map("course_id")
+  date          DateTime @db.Date
+  hour          Int
+  isHoliday     Boolean  @default(false) @map("is_holiday")
+  holidayReason String?  @map("holiday_reason")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  attendanceDetails AttendanceDetail[]
+  attendanceEdits   AttendanceEdit[]
+
+  @@unique([courseId, date, hour])
+  @@map("attendance")
+}
+
+model AttendanceDetail {
+  id           String   @id @default(uuid())
+  attendanceId String   @map("attendance_id")
+  studentId    String   @map("student_id")
+  status       String   // 'Present' | 'Absent'
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([attendanceId, studentId])
+  @@map("attendance_details")
+}
+
+model AttendanceEdit {
+  id             String   @id @default(uuid())
+  attendanceId   String   @map("attendance_id")
+  studentId      String   @map("student_id")
+  previousStatus String   @map("previous_status")
+  newStatus      String   @map("new_status")
+  reason         String
+  editedAt       DateTime @default(now()) @map("edited_at")
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_edits")
+}
