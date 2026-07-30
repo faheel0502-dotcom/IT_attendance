@@ -7,6 +7,7 @@ import {
   bulkImportStudents,
   enrollDefaultStudents,
   enrollSelectedStudents,
+  assignBatches,
   addStudentToSection,
   bulkImportToSection,
   deleteStudent,
@@ -25,7 +26,8 @@ export function useAllStudents(batchName) {
   return useQuery({
     queryKey: ['all-students', batchName],
     queryFn: () => fetchAllStudents(batchName),
-    staleTime: 1000 * 60 * 10,
+    // No staleTime — always refetch after invalidation so newly imported students appear immediately
+    staleTime: 0,
   })
 }
 
@@ -34,8 +36,9 @@ export function useAddStudentToSection(batchName) {
   return useMutation({
     mutationFn: (studentData) => addStudentToSection({ ...studentData, batch: batchName }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-students', batchName] })
-      queryClient.invalidateQueries({ queryKey: ['all-students'] })
+      // Use refetchQueries to immediately trigger a fresh fetch (not just mark stale)
+      queryClient.refetchQueries({ queryKey: ['all-students', batchName], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['all-students'], exact: false })
     },
   })
 }
@@ -45,8 +48,9 @@ export function useBulkImportToSection(batchName) {
   return useMutation({
     mutationFn: (studentsArray) => bulkImportToSection(batchName, studentsArray),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-students', batchName] })
-      queryClient.invalidateQueries({ queryKey: ['all-students'] })
+      // Force immediate refetch so imported students appear right away
+      queryClient.refetchQueries({ queryKey: ['all-students', batchName], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['all-students'], exact: false })
     },
   })
 }
@@ -56,8 +60,8 @@ export function useDeleteStudent(batchName) {
   return useMutation({
     mutationFn: (studentId) => deleteStudent(studentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-students', batchName] })
-      queryClient.invalidateQueries({ queryKey: ['all-students'] })
+      queryClient.refetchQueries({ queryKey: ['all-students', batchName], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['all-students'], exact: false })
     },
   })
 }
@@ -67,8 +71,8 @@ export function useBulkDeleteStudents(batchName) {
   return useMutation({
     mutationFn: (studentIds) => bulkDeleteStudents(studentIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-students', batchName] })
-      queryClient.invalidateQueries({ queryKey: ['all-students'] })
+      queryClient.refetchQueries({ queryKey: ['all-students', batchName], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['all-students'], exact: false })
     },
   })
 }
@@ -124,6 +128,16 @@ export function useEnrollSelectedStudents() {
     onSuccess: (_data, { courseId }) => {
       queryClient.invalidateQueries({ queryKey: ['students', courseId] })
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+    },
+  })
+}
+
+export function useAssignBatches(courseId) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (batch1StudentIds) => assignBatches(courseId, batch1StudentIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students', courseId] })
     },
   })
 }
